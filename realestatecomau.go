@@ -2,10 +2,13 @@ package realestatecomau
 
 import (
 	"fmt"
+	"io/ioutil"
+	"net/http"
 	"net/url"
 	"github.com/PuerkitoBio/goquery"
 	"errors"
 	"strconv"
+	"strings"
 )
 
 const (
@@ -22,6 +25,83 @@ type Info struct {
 	Bathrooms int
 	CarSpaces int
 	Link string
+	FloorPlans []Image
+	Photos []Image
+}
+
+type Image struct {
+	DataType string
+	ThumbURL string
+	URL string
+	Data []byte
+}
+
+func (info *Info) downloadImage(thumbURL, dataType string) (err error) {
+	fields := strings.Split(thumbURL, "/")
+	url := strings.Join(fields[: 3], "/") + "/5000x5000/" + strings.Join(fields[4 : len(fields)], "/")
+	response, err := http.Get(url)
+
+	if err != nil {
+		return
+	}
+
+	data, err := ioutil.ReadAll(response.Body)
+
+	if err != nil {
+		return
+	}
+
+	image := Image{
+		URL: url,
+		ThumbURL: thumbURL,
+		DataType: dataType,
+		Data: data,
+	}
+
+	if dataType == "floorplan" {
+		info.FloorPlans = append(info.FloorPlans, image)
+	} else {
+		info.Photos = append(info.Photos, image)
+	}
+
+	return
+}
+
+func (info *Info) GetImages() (err error) {
+	doc, err := goquery.NewDocument(info.Link)
+
+	if err != nil {
+		return
+	}
+
+	selection := doc.Find("#photoViewerCont > div.thumbs div.pages > div.page > div.thumb > img")
+
+	selection.EachWithBreak(func(index int, selection *goquery.Selection) bool {
+		var src string
+		var dataType string
+
+		for _, attr := range selection.Nodes[0].Attr {
+			if attr.Key == "data-type" {
+				dataType = attr.Val
+			} else if attr.Key == "src" {
+				src = attr.Val
+			}
+		}
+
+		if src == "" || dataType == "" {
+			err = errors.New("could not download photo")
+
+			return false
+		}
+
+		if err = info.downloadImage(src, dataType); err != nil {
+			return false
+		}
+
+		return true
+	})
+
+	return
 }
 
 func GetInfo(address string) (info *Info, err error) {
