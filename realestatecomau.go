@@ -1,50 +1,58 @@
+// Package realestatecomau scrapes real estate information from realestate.com.au.
 package realestatecomau
 
 import (
+	"errors"
 	"fmt"
+	"github.com/PuerkitoBio/goquery"
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"github.com/PuerkitoBio/goquery"
-	"errors"
 	"strconv"
 	"strings"
 )
 
 const (
+	// RealEstateComAuURL is the base URL for the website.
 	RealEstateComAuURL = "http://www.realestate.com.au"
-	RealEstateComAuBuyURL = "http://www.realestate.com.au/buy/in-%s/list-1"
+
+	// RealEstateComAuBuyURL is the URL used to view purchasable real estate.
+	RealEstateComAuBuyURL = RealEstateComAuURL + "/buy/in-%s/list-1"
 )
 
+// Info is the structure containing scraped information.
 type Info struct {
-	Address string
-	PriceText string
-	SaleType string
+	Address      string
+	PriceText    string
+	SaleType     string
 	PropertyType string
-	Bedrooms int
-	Bathrooms int
-	CarSpaces int
-	Link string
-	FloorPlans []Image
-	Photos []Image
-	Inspections []Inspection
+	Bedrooms     int
+	Bathrooms    int
+	CarSpaces    int
+	Link         string
+	FloorPlans   []Image
+	Photos       []Image
+	Inspections  []Inspection
 }
 
+// Image is the structure for images downloaded from the website.
 type Image struct {
 	DataType string
 	ThumbURL string
-	URL string
-	Data []byte
+	URL      string
+	Data     []byte
 }
 
+// Inspection is a structure storing the inspection times for properties.
 type Inspection struct {
 	Date string
 	Time string
 }
 
+// downloadImage is the method used to download images from the website given the thumbnail URL and type.
 func (info *Info) downloadImage(thumbURL, dataType string) (err error) {
 	fields := strings.Split(thumbURL, "/")
-	url := strings.Join(fields[: 3], "/") + "/5000x5000/" + strings.Join(fields[4 : len(fields)], "/")
+	url := strings.Join(fields[:3], "/") + "/5000x5000/" + strings.Join(fields[4:len(fields)], "/")
 	response, err := http.Get(url)
 
 	if err != nil {
@@ -58,10 +66,10 @@ func (info *Info) downloadImage(thumbURL, dataType string) (err error) {
 	}
 
 	image := Image{
-		URL: url,
+		URL:      url,
 		ThumbURL: thumbURL,
 		DataType: dataType,
-		Data: data,
+		Data:     data,
 	}
 
 	if dataType == "floorplan" {
@@ -73,6 +81,7 @@ func (info *Info) downloadImage(thumbURL, dataType string) (err error) {
 	return
 }
 
+// GetImages downloads images for this property (see Photos and FloorPlans).
 func (info *Info) GetImages() (err error) {
 	doc, err := goquery.NewDocument(info.Link)
 
@@ -110,6 +119,7 @@ func (info *Info) GetImages() (err error) {
 	return
 }
 
+// GetInspections scrapes inspection details.
 func (info *Info) GetInspections() (err error) {
 	doc, err := goquery.NewDocument(info.Link)
 
@@ -137,6 +147,7 @@ func (info *Info) GetInspections() (err error) {
 	return
 }
 
+// GetInfo scrapes information for the address given. Images are not downloaded.
 func GetInfo(address string) (info *Info, err error) {
 	url := fmt.Sprintf(RealEstateComAuBuyURL, url.QueryEscape(address))
 	doc, err := goquery.NewDocument(url)
