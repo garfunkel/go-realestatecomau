@@ -27,6 +27,7 @@ type Info struct {
 	Link string
 	FloorPlans []Image
 	Photos []Image
+	Inspections []Inspection
 }
 
 type Image struct {
@@ -34,6 +35,11 @@ type Image struct {
 	ThumbURL string
 	URL string
 	Data []byte
+}
+
+type Inspection struct {
+	Date string
+	Time string
 }
 
 func (info *Info) downloadImage(thumbURL, dataType string) (err error) {
@@ -97,6 +103,33 @@ func (info *Info) GetImages() (err error) {
 		if err = info.downloadImage(src, dataType); err != nil {
 			return false
 		}
+
+		return true
+	})
+
+	return
+}
+
+func (info *Info) GetInspections() (err error) {
+	doc, err := goquery.NewDocument(info.Link)
+
+	if err != nil {
+		return
+	}
+
+	selection := doc.Find("#inspectionTimes > a.calendar-item")
+
+	selection.EachWithBreak(func(index int, selection *goquery.Selection) bool {
+		date := selection.Find("strong").First().Text()
+		time := selection.Find("span.time").First().Text()
+
+		if date == "" || time == "" {
+			err = errors.New("could not parse inspection time info")
+
+			return false
+		}
+
+		info.Inspections = append(info.Inspections, Inspection{Date: date, Time: time})
 
 		return true
 	})
