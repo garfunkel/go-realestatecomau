@@ -176,10 +176,10 @@ func GetInfo(address string) (info *Info, err error) {
 		return
 	}
 
-	selection = doc.Find("div.resultBody")
+	selection = doc.Find("div.resultBody").First()
 
 	if len(selection.Nodes) != 1 {
-		err = errors.New("Found more than one result")
+		err = errors.New("Unexpected number of results")
 
 		return
 	}
