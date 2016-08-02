@@ -6,7 +6,19 @@ import (
 )
 
 func TestGetInfo(t *testing.T) {
-	_, err := GetInfo("59/47 Hampstead Road Homebush West NSW 2140")
+	info, err := GetInfo("North Sydney, NSW 2060")
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = info.GetInspections()
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = info.GetImages()
 
 	if err != nil {
 		log.Fatal(err)

@@ -127,7 +127,7 @@ func (info *Info) GetInspections() (err error) {
 		return
 	}
 
-	selection := doc.Find("#inspectionTimes > a.calendar-item")
+	selection := doc.Find("#inspectionTimes > div.inspectionTimesWrapper > a.calendar-item")
 
 	selection.EachWithBreak(func(index int, selection *goquery.Selection) bool {
 		date := selection.Find("strong").First().Text()
@@ -176,7 +176,7 @@ func GetInfo(address string) (info *Info, err error) {
 		return
 	}
 
-	selection = doc.Find("div.resultBody").First()
+	selection = doc.Find("article.resultBody:first-of-type").First()
 
 	if len(selection.Nodes) != 1 {
 		err = errors.New("Unexpected number of results")
@@ -184,7 +184,7 @@ func GetInfo(address string) (info *Info, err error) {
 		return
 	}
 
-	selection = doc.Find("div.resultBody div.propertyStats > p.price").First()
+	selection = doc.Find("article.resultBody:first-of-type div.propertyStats > p.priceText, article.resultBody:first-of-type div.propertyStats > p.contactAgent").First()
 
 	if len(selection.Nodes) != 1 {
 		err = errors.New("Could not parse price text")
@@ -194,7 +194,7 @@ func GetInfo(address string) (info *Info, err error) {
 
 	info.PriceText = selection.Text()
 
-	selection = doc.Find("div.resultBody div.propertyStats > p.type").First()
+	selection = doc.Find("article.resultBody:first-of-type div.propertyStats > p.type").First()
 
 	if len(selection.Nodes) != 1 {
 		info.SaleType = "Unknown"
@@ -202,40 +202,22 @@ func GetInfo(address string) (info *Info, err error) {
 		info.SaleType = selection.Text()
 	}
 
-	selection = doc.Find("div.resultBody div.listingInfo > span.propertyType").First()
-
-	if len(selection.Nodes) != 1 {
-		info.PropertyType = "Unknown"
-	} else {
-		info.PropertyType = selection.Text()
-	}
-
-	selection = doc.Find("div.resultBody div.listingInfo > ul.propertyFeatures > li")
+	selection = doc.Find("article.resultBody:first-of-type div.listingInfo > dl.rui-property-features > dt.rui-icon")
 
 	selection.Each(func(index int, selection *goquery.Selection) {
-		img := selection.Find("img").First()
-		num := selection.Find("span").First()
+		key := selection.Find("span.rui-visuallyhidden").First().Text()
+		numValue, _ := strconv.Atoi(selection.Next().Text())
 
-		for _, attr := range img.Nodes[0].Attr {
-			if attr.Key == "alt" {
-				var numValue int
-
-				numValue, _ = strconv.Atoi(num.Text())
-
-				if attr.Val == "Bedrooms" {
-					info.Bedrooms = numValue
-				} else if attr.Val == "Bathrooms" {
-					info.Bathrooms = numValue
-				} else if attr.Val == "Car Spaces" {
-					info.CarSpaces = numValue
-				}
-
-				break
-			}
+		if key == "Bedrooms" {
+			info.Bedrooms = numValue
+		} else if key == "Bathrooms" {
+			info.Bathrooms = numValue
+		} else if key == "Car Spaces" {
+			info.CarSpaces = numValue
 		}
 	})
 
-	selection = doc.Find("div.resultBody div.vcard a").First()
+	selection = doc.Find("article.resultBody:first-of-type div.vcard a").First()
 
 	if len(selection.Nodes) != 1 {
 		err = errors.New("Could not parse info link")
@@ -249,6 +231,20 @@ func GetInfo(address string) (info *Info, err error) {
 
 			break
 		}
+	}
+
+	doc, err = goquery.NewDocument(info.Link)
+
+	if err != nil {
+		return
+	}
+
+	selection = doc.Find("#listing_info > ul > li.property_info > span.propertyType")
+
+	if len(selection.Nodes) != 1 {
+		info.PropertyType = "Unknown"
+	} else {
+		info.PropertyType = selection.Text()
 	}
 
 	return
